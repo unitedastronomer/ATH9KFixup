@@ -22,7 +22,7 @@ namespace WIOKit {
 	 *  This feels mad and insane, since it may prevent the system from booting.
 	 *  Although this had never happened, we will use a far bigger fail-safe stop value.
 	 */
-	static constexpr size_t bruteMax {0x10000000};
+	static constexpr size_t bruteMax {40000000};
 
 	/**
 	 *  Read typed OSData
@@ -118,7 +118,7 @@ namespace WIOKit {
 	 *
 	 *  @return property object (must be released) or nullptr
 	 */
-	EXPORT OSSerialize *getProperty(IORegistryEntry *entry, const char *property);
+	EXPORT LIBKERN_RETURNS_RETAINED OSSerialize *getProperty(IORegistryEntry *entry, const char *property);
 
 	/**
 	 *  Model variants
@@ -141,7 +141,8 @@ namespace WIOKit {
 			AMDZEN = 0x1022,
 			NVIDIA = 0x10DE,
 			Intel  = 0x8086,
-			VMware = 0x15AD
+			VMware = 0x15AD,
+			QEMU   = 0x1B36,
 		};
 	};
 
@@ -157,6 +158,8 @@ namespace WIOKit {
 			Ex3DController    = 0x030200,
 			DisplayController = 0x038000,
 			PCIBridge         = 0x060400,
+			// HDA device on some laptops like Acer Aspire VN7-592G (INSYDE).
+			HDAMmDevice       = 0x040100,
 			// Watch out for PCISubclassMask, 0x040380 is common on laptops.
 			HDADevice         = 0x040300,
 			// This does not seem to be documented. It works on Haswell at least.
@@ -194,7 +197,8 @@ namespace WIOKit {
 		kIOPCIConfigInterruptLine           = 0x3C,
 		kIOPCIConfigInterruptPin            = 0x3D,
 		kIOPCIConfigMinimumGrant            = 0x3E,
-		kIOPCIConfigMaximumLatency          = 0x3F
+		kIOPCIConfigMaximumLatency          = 0x3F,
+		kIOPCIConfigGraphicsControl         = 0x50
 	};
 
 	/**
@@ -228,14 +232,25 @@ namespace WIOKit {
 	using t_PCIGetFunctionNumber = uint8_t (*)(IORegistryEntry *service);
 
 	/**
+	 *  Await for device publishing in IOService plane
+	 *
+	 *  @param obj  wait for (PCI) object publishing
+	 *
+	 *  @retval true on success
+	 */
+	EXPORT bool awaitPublishing(IORegistryEntry *obj);
+
+	/**
 	 *  Read PCI Config register
 	 *
 	 *  @param service  IOPCIDevice-compatible service.
 	 *  @param reg      PCI config register
 	 *  @param space    adress space
 	 *  @param size     read size for reading custom registers
+	 *
+	 *  @return value read
 	 */
-    EXPORT uint32_t readPCIConfigValue(IORegistryEntry *service, uint32_t reg, uint32_t space = 0, uint32_t size = 0);
+	EXPORT uint32_t readPCIConfigValue(IORegistryEntry *service, uint32_t reg, uint32_t space = 0, uint32_t size = 0);
 
 	/**
 	 *  Retrieve PCI device address
@@ -245,14 +260,14 @@ namespace WIOKit {
 	 *  @param device    device address
 	 *  @param function  function address
 	 */
-    EXPORT void getDeviceAddress(IORegistryEntry *service, uint8_t &bus, uint8_t &device, uint8_t &function);
+	EXPORT void getDeviceAddress(IORegistryEntry *service, uint8_t &bus, uint8_t &device, uint8_t &function);
 
 	/**
 	 *  Retrieve the computer type
 	 *
 	 *  @return valid computer type or ComputerAny
 	 */
-	EXPORT int getComputerModel();
+	EXPORT int getComputerModel() DEPRECATE("Use BaseDeviceInfo");
 
 	/**
 	 *  Retrieve computer model and/or board-id properties
@@ -264,7 +279,7 @@ namespace WIOKit {
 	 *
 	 *  @return true if relevant properties already are available, otherwise buffers are unchanged
 	 */
-	EXPORT bool getComputerInfo(char *model, size_t modelsz, char *board, size_t boardsz);
+	EXPORT bool getComputerInfo(char *model, size_t modelsz, char *board, size_t boardsz) DEPRECATE("Use BaseDeviceInfo");
 
 	/**
 	 *  Retrieve an ioreg entry by path/prefix
@@ -278,7 +293,7 @@ namespace WIOKit {
 	 *
 	 *  @return entry pointer (must NOT be released) or nullptr (on failure or in proc mode)
 	 */
-	EXPORT IORegistryEntry *findEntryByPrefix(const char *path, const char *prefix, const IORegistryPlane *plane, bool (*proc)(void *, IORegistryEntry *)=nullptr, bool brute=false, void *user=nullptr);
+	EXPORT LIBKERN_RETURNS_NOT_RETAINED IORegistryEntry *findEntryByPrefix(const char *path, const char *prefix, const IORegistryPlane *plane, bool (*proc)(void *, IORegistryEntry *)=nullptr, bool brute=false, void *user=nullptr);
 
 	/**
 	 *  Retrieve an ioreg entry by path/prefix
@@ -292,7 +307,7 @@ namespace WIOKit {
 	 *
 	 *  @return entry pointer (must NOT be released) or nullptr (on failure or in proc mode)
 	 */
-	EXPORT IORegistryEntry *findEntryByPrefix(IORegistryEntry *entry, const char *prefix, const IORegistryPlane *plane, bool (*proc)(void *, IORegistryEntry *)=nullptr, bool brute=false, void *user=nullptr);
+	EXPORT LIBKERN_RETURNS_NOT_RETAINED IORegistryEntry *findEntryByPrefix(IORegistryEntry *entry, const char *prefix, const IORegistryPlane *plane, bool (*proc)(void *, IORegistryEntry *)=nullptr, bool brute=false, void *user=nullptr);
 
 	/**
 	 *  Check if we are using prelinked kernel/kexts or not
@@ -310,7 +325,7 @@ namespace WIOKit {
 	 *
 	 *  @return true on success
 	 */
-    EXPORT bool renameDevice(IORegistryEntry *entry, const char *name, bool compat=true);
+	EXPORT bool renameDevice(IORegistryEntry *entry, const char *name, bool compat=true);
 }
 
 #endif /* kern_iokit_hpp */

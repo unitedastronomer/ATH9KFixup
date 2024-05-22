@@ -2,15 +2,17 @@
 //  kern_devinfo.hpp
 //  Lilu
 //
-//  Copyright © 2018 vit9696. All rights reserved.
+//  Copyright © 2018-2020 vit9696. All rights reserved.
 //
 
 #ifndef kern_devinfo_h
 #define kern_devinfo_h
 
 #include <Headers/kern_config.hpp>
+#include <Headers/kern_cpu.hpp>
+#include <Headers/kern_iokit.hpp>
 #include <Headers/kern_util.hpp>
-#include <Library/LegacyIOService.h>
+#include <IOKit/IOService.h>
 
 /**
  *  Obtain installed devices split into categories.
@@ -28,16 +30,18 @@ class DeviceInfo {
 	void updateFramebufferId();
 
 	/**
-	 *  Updates firmwareVendor
-	 */
-	void updateFirmwareVendor();
-
-	/**
 	 *  Obtains devices from PCI root
 	 *
 	 *  @param pciRoot  PCI root instance (commonly PCI0@0 device)
 	 */
 	void grabDevicesFromPciRoot(IORegistryEntry *pciRoot);
+
+	/**
+	 *  Await for PCI device publishing in IODeviceTree plane
+	 *
+	 *  @param obj  wait for (PCI) object publishing
+	 */
+	void awaitPublishing(IORegistryEntry *obj);
 
 public:
 	/**
@@ -97,7 +101,7 @@ public:
 	/**
 	 *  Aka GFX0 devices (kept in sync with audioExternal)
 	 */
-	evector<ExternalVideo> videoExternal;
+	evector<ExternalVideo&> videoExternal;
 
 private:
 	/**
@@ -151,6 +155,18 @@ private:
 	static constexpr const char *RequestedExternalSwitchOffArg {"-wegnoegpu"};
 
 	/**
+	 *  The boot-arg to force-disable any internal GPU if found.
+	 *  For user configuration only! Use requestedInternalSwitchOff!
+	 */
+	static constexpr const char *RequestedInternalSwitchOffArg {"-wegnoigpu"};
+
+	/**
+	 *  The boot-arg to force-disable any internal GPU if external GPU found.
+	 *  For user configuration only! Use requestedGpuSwitch!!
+	 */
+	static constexpr const char *RequestedGpuSwitchArg {"-wegswitchgpu"};
+
+	/**
 	 *  The property to set your platform id for Intel drivers (Ivy and newer).
 	 *  For user configuration only! Use reportedFramebufferName!
 	 */
@@ -164,9 +180,34 @@ private:
 
 	/**
 	 *  The IGPU property to force-disable any external GPU if found.
-	 *  For user configuration only! Use requestedExternalSwitchOff!
+	 *  For user configuration only! Use processSwitchOff()!
 	 */
 	static constexpr const char *RequestedExternalSwitchOffName {"disable-external-gpu"};
+
+	/**
+	 *  The IGPU property to force-disable the IGPU if any external GPU is found.
+	 *  For user configuration only! Use processSwitchOff()!
+	 */
+	static constexpr const char *RequestedGpuSwitchName {"switch-to-external-gpu"};
+
+	/**
+	 *  The GPU property to force-disable any external or internal GPU.
+	 *  For user configuration only! Use processSwitchOff()!
+	 */
+	static constexpr const char *RequestedGpuSwitchOffName {"disable-gpu"};
+
+	/**
+	 *  The GPU property to force-disable any this external GPU with minimum kernel version (inclusive).
+	 *  For user configuration only! Use processSwitchOff()!
+	 */
+	static constexpr const char *RequestedGpuSwitchOffMinKernelName {"disable-gpu-min"};
+
+	/**
+	 *  The GPU property to force-disable any this external GPU with maximum kernel version (inclusive).
+	 *  For user configuration only! Use processSwitchOff()!
+	 */
+	static constexpr const char *RequestedGpuSwitchOffMaxKernelName {"disable-gpu-max"};
+
 
 	/**
 	 *  Known platform ids used by Intel GPU kexts
@@ -200,6 +241,10 @@ private:
 	static constexpr uint32_t ConnectorLessKabyLakePlatformId2 {0x59120003};
 	static constexpr uint32_t ConnectorLessCoffeeLakePlatformId1 {0x3E920003};
 	static constexpr uint32_t ConnectorLessCoffeeLakePlatformId2 {0x3E910003};
+	static constexpr uint32_t ConnectorLessCoffeeLakePlatformId3 {0x3E980003};
+	static constexpr uint32_t ConnectorLessCoffeeLakePlatformId4 {0x9BC80003};
+	static constexpr uint32_t ConnectorLessCoffeeLakePlatformId5 {0x9BC50003};
+	static constexpr uint32_t ConnectorLessCoffeeLakePlatformId6 {0x9BC40003};
 
 public:
 	/**
@@ -255,6 +300,22 @@ public:
 	bool requestedExternalSwitchOff {false};
 
 	/**
+	 *  Requested internal GPU switchoff
+	 */
+	bool requestedInternalSwitchOff {false};
+
+	/**
+	 *  Requested GPU switch
+	 */
+	bool requestedGpuSwitch {false};
+	/**
+	 *  Allocate and initialise cached device list.
+	 *
+	 *  @return device list or nullptr
+	 */
+	static DeviceInfo *createCached();
+
+	/**
 	 *  Allocate and initialise the device list.
 	 *
 	 *  @return device list or nullptr
@@ -266,7 +327,112 @@ public:
 	 *
 	 *  @param d  device list
 	 */
-	EXPORT static void deleter(DeviceInfo *d);
+	EXPORT static void deleter(DeviceInfo *d NONNULL);
+
+	/**
+	 *  Perform device switch-off as prescribed by the properties injected.
+	 */
+	EXPORT void processSwitchOff();
+};
+
+/**
+ *  Simple device information available at early stage.
+ */
+class BaseDeviceInfo {
+	/**
+	 *  Updates firmwareVendor
+	 */
+	void updateFirmwareVendor();
+
+	/**
+	 *  Updates model information
+	 */
+	void updateModelInfo();
+public:
+	/**
+	 *  Board identifier board-id (VMware has "440BX Desktop Reference Platform", eek)
+	 */
+	char boardIdentifier[48] {};
+
+	/**
+	 *  Model identifier
+	 */
+	char modelIdentifier[48] {};
+
+	/**
+	 * Computer model type.
+	 */
+	int modelType {WIOKit::ComputerModel::ComputerAny};
+
+	/**
+	 *  Firmware vendor manufacturer
+	 */
+	DeviceInfo::FirmwareVendor firmwareVendor {DeviceInfo::FirmwareVendor::Unknown};
+
+	/**
+	 *  Known variants of bootloader vendors
+	 *  Please note, that it may not be possible to always detect the right vendor
+	 */
+	enum class BootloaderVendor {
+		Unknown,
+		Acidanthera,
+		Clover
+	};
+
+	/**
+	 *  Bootloader vendor
+	 */
+	BootloaderVendor bootloaderVendor {BootloaderVendor::Unknown};
+
+	/**
+	 *  CPU vendor
+	 */
+	CPUInfo::CpuVendor cpuVendor {CPUInfo::CpuVendor::Unknown};
+
+	/**
+	 *  CPU generation
+	 */
+	CPUInfo::CpuGeneration cpuGeneration {CPUInfo::CpuGeneration::Unknown};
+
+	/**
+	 *  CPU family
+	 */
+	uint32_t cpuFamily {};
+
+	/**
+	 *  CPU model
+	 */
+	uint32_t cpuModel {};
+
+	/**
+	 *  CPU stepping
+	 */
+	uint32_t cpuStepping {};
+
+	/**
+	 *  CPU max level
+	 */
+	uint32_t cpuMaxLevel {};
+
+	/**
+	 *  CPU max level (ext)
+	 */
+	uint32_t cpuMaxLevelExt {0x80000000};
+
+	/**
+	 *  AVX 2.0 support
+	 */
+	bool cpuHasAvx2 {false};
+
+	/**
+	 *  Obtain base device info.
+	 */
+	EXPORT static const BaseDeviceInfo &get();
+
+	/**
+	 *  Initialize global base device info.
+	 */
+	static void init();
 };
 
 #endif /* kern_devinfo_h */

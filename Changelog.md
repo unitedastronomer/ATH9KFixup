@@ -1,6 +1,11 @@
 ATH9KFixup Changelog
 ====================
 
+#### v1.6.7
+- Added Sonoma compatibility
+- Adjusted to be loaded with OCLP's patched AirportAtheros40.kext
+- Lilu.kext updated to v1.6.7
+
 #### v1.3.3
 - Performance improvements
 - Lilu.kext updated to 1.3.3

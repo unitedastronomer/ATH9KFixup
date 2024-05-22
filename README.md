@@ -1,11 +1,11 @@
 ATH9KFixup
 ==========
+This fork is adjusted to be loaded with OCLP's patched AirportAtheros40. 
 
 An open source kernel extension providing patches for unsupported Atheros cards.
 - AR946X (AR9462 & AR9463)
 - AR9485
 - AR9565
-
 
 #### Features
 Boot args:
@@ -13,6 +13,14 @@ Boot args:
 - AR9485: -ath9485
 - AR9565: -ath9565
 
+Load kext in order:
+
+1. ATH9Fixup.kext
+2. corecaptureElCap.kext
+3. O80211ElCap.kext
+4. IO80211ElCap.kext/Contents/PlugIns/AirPortAtheros40.kext
+
+Set minKernel to `18.0.0` (Mojave)
 
 #### Credits
 - [Apple](https://www.apple.com) for macOS  
@@ -20,3 +28,4 @@ Boot args:
 - [Pike R. Alpha](https://github.com/Piker-Alpha) for patch
 - [lvs1974](https://applelife.ru/members/lvs1974.53809/) for original source code and idea
 - [chunnann](http://www.insanelymac.com/forum/user/1977171-chunnann/) for writing the software and maintaining it
+- [unitedastronomer](https://github.com/unitedastronomer) adjusted to be used with OCLP's patched AirportAtheros40

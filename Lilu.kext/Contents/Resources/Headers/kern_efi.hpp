@@ -22,6 +22,15 @@ static_assert(EFI_LOAD_ERROR == 0x80000001 && EFI_ERROR64(EFI_LOAD_ERROR) == 0x8
 class EfiRuntimeServices {
 	IOLock *accessLock {nullptr};
 	static EfiRuntimeServices *instance;
+private:
+	bool is32BitEFI {false};
+	void *efiRuntimeServices {nullptr};
+	
+	/**
+	 *  Set EFI runtime services table pointer
+	 */
+	void setRuntimeServices();
+	
 public:
 	/**
 	 *  Activates EFI Runtime Services
@@ -29,9 +38,9 @@ public:
 	static void activate();
 
 	/**
-	 *  Lilu custom GUIDs exports, see Headers/Guid/LiluVariables.h
+	 *  Lilu custom GUIDs exports, see OcSupportPkg/Include/Guid/OcVariables.h
 	 */
-	EXPORT static const EFI_GUID LiluNormalGuid;
+	EXPORT static const EFI_GUID LiluVendorGuid;
 	EXPORT static const EFI_GUID LiluReadOnlyGuid;
 	EXPORT static const EFI_GUID LiluWriteOnlyGuid;
 

@@ -15,11 +15,11 @@
 	<key>CFBundlePackageType</key>
 	<string>KEXT</string>
 	<key>CFBundleShortVersionString</key>
-	<string>$(MODULE_VERSION)</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>$(MODULE_VERSION)</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>IOKitPersonalities</key>
 	<dict>
 		<key>ATH9KFixup</key>
@@ -30,6 +30,8 @@
 			<string>$(PRODUCT_NAME:rfc1034identifier)</string>
 			<key>IOMatchCategory</key>
 			<string>$(PRODUCT_NAME:rfc1034identifier)</string>
+			<key>IOProbeScore</key>
+			<integer>10000</integer>
 			<key>IOProviderClass</key>
 			<string>IOResources</string>
 			<key>IOResourceMatch</key>
@@ -37,7 +39,7 @@
 		</dict>
 	</dict>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2017 chunnann. All rights reserved.</string>
+	<string>Copyright © 2017 chunnann, unitedastronomer. All rights reserved.</string>
 	<key>OSBundleCompatibleVersion</key>
 	<string>1.0</string>
 	<key>OSBundleLibraries</key>

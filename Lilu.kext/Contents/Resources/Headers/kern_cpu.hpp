@@ -12,7 +12,7 @@
 #include <Headers/kern_iokit.hpp>
 #include <Headers/kern_util.hpp>
 
-#include <Library/LegacyIOService.h>
+#include <IOKit/IOService.h>
 
 /**
  *  XNU CPU-related exports missing from headers
@@ -48,7 +48,7 @@ namespace CPUInfo {
 	 *  Intel CPU models as returned by CPUID
 	 *  The list is synchronised and updated with XNU source code (osfmk/i386/cpuid.h).
 	 *  Names are altered to avoid conflicts just in case.
-	 *  Last update: xnu-4570.41.2
+	 *  Last update: xnu-4903.221.2
 	 *  Some details could be found on http://instlatx64.atw.hu and https://en.wikichip.org/wiki/64-bit_architecture#x86
 	 *  Also: https://www.intel.com/content/dam/www/public/us/en/documents/sa00115-microcode-update-guidance.pdf
 	 */
@@ -77,18 +77,25 @@ namespace CPUInfo {
 		CPU_MODEL_SKYLAKE        =  0x4E,
 		CPU_MODEL_SKYLAKE_ULT    =  0x4E,
 		CPU_MODEL_SKYLAKE_ULX    =  0x4E,
+		CPU_MODEL_BROADWELL_EP   =  0x4F,
 		CPU_MODEL_SKYLAKE_DT     =  0x5E,
 		CPU_MODEL_SKYLAKE_W      =  0x55,
 		CPU_MODEL_KABYLAKE       =  0x8E,
 		CPU_MODEL_KABYLAKE_ULT   =  0x8E,
 		CPU_MODEL_KABYLAKE_ULX   =  0x8E,
 		CPU_MODEL_KABYLAKE_DT    =  0x9E,
-		CPU_MODEL_COFFEELAKE     =  0x9E,
-		CPU_MODEL_COFFEELAKE_ULT =  0x9E,
-		CPU_MODEL_COFFEELAKE_ULX =  0x9E,
-		CPU_MODEL_COFFEELAKE_DT  =  0x9E,
 		CPU_MODEL_CANNONLAKE     =  0x66,
-		CPU_MODEL_ICELAKE        =  0x7E
+		CPU_MODEL_ICELAKE_Y      =  0x7D,
+		CPU_MODEL_ICELAKE_U      =  0x7E,
+		CPU_MODEL_ICELAKE_SP     =  0x9F, /* Some variation of Ice Lake */
+		CPU_MODEL_COMETLAKE_S    =  0xA5, /* desktop CometLake */
+		CPU_MODEL_COMETLAKE_Y    =  0xA5, /* aka 10th generation Amber Lake Y */
+		CPU_MODEL_COMETLAKE_U    =  0xA6,
+		CPU_MODEL_ROCKETLAKE_S   =  0xA7, /* desktop RocketLake */
+		CPU_MODEL_TIGERLAKE_U    =  0x8C,
+		CPU_MODEL_ALDERLAKE_S    =  0x97,
+		CPU_MODEL_RAPTORLAKE_S   =  0xB7, /* Raptor Lake B0 stepping */
+		CPU_MODEL_RAPTORLAKE_HX  =  0xBF, /* Raptor Lake C0 stepping */
 	};
 
 	/**
@@ -118,6 +125,11 @@ namespace CPUInfo {
 		CoffeeLake,
 		CannonLake,
 		IceLake,
+		CometLake,
+		RocketLake,
+		TigerLake,
+		AlderLake,
+		RaptorLake,
 		MaxGeneration
 	};
 
@@ -302,7 +314,7 @@ namespace CPUInfo {
 	/**
 	 *  Reads CPU information and other data.
 	 */
-	void loadCpuInformation();
+	void init();
 
 	/**
 	 *  Installed CPU information mapping
@@ -381,7 +393,7 @@ namespace CPUInfo {
 	 *
 	 *  @return detected Intel CPU generation
 	 */
-	EXPORT CpuGeneration getGeneration(uint32_t *ofamily=nullptr, uint32_t *omodel=nullptr, uint32_t *ostepping=nullptr);
+	EXPORT CpuGeneration getGeneration(uint32_t *ofamily=nullptr, uint32_t *omodel=nullptr, uint32_t *ostepping=nullptr)  DEPRECATE("Use BaseDeviceInfo");;
 
 	/**
 	 *  Obtain CPU topology.

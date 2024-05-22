@@ -13,30 +13,22 @@
 #include <sys/types.h>
 #include <sys/proc.h>
 
-#include <Library/security/mac_framework.h>
-#include <Library/security/mac_policy.h>
+#include <security/mac_framework.h>
+#include <security/mac_policy.h>
 #include <Headers/kern_util.hpp>
 
+#if defined(__x86_64__)
 class Policy {
 	/**
 	 *  TrustedBSD Policy handle
 	 */
 	mac_policy_handle_t policyHandle {0};
-	
+
 	/**
 	 *  TrustedBSD policy configuration
 	 */
 	mac_policy_conf policyConf;
 public:
-	/**
-	 *  May be used at TrustedBSD policy initialisation
-	 *
-	 *  @param conf policy configuration
-	 */
-	static void dummyPolicyInitBSD(mac_policy_conf *conf) {
-		DBGLOG("policy", "init bsd");
-	}
-	
 	/**
 	 *  Compile-time policy constructor
 	 *
@@ -55,14 +47,14 @@ public:
 		.mpc_field_off			= nullptr,
 		.mpc_runtime_flags		= 0
 	} { }
-	
+
 	/**
 	 *  Registers TrustedBSD policy
 	 *
 	 *  @return true on success
 	 */
 	EXPORT bool registerPolicy();
-	
+
 	/**
 	 *  Unregisters TrustedBSD policy if allowed
 	 *
@@ -70,5 +62,6 @@ public:
 	 */
 	EXPORT bool unregisterPolicy();
 };
+#endif
 
 #endif /* kern_policy_hpp */

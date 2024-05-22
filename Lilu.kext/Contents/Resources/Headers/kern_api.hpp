@@ -16,6 +16,11 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <libkern/OSAtomic.h>
+#include <Availability.h>
+
+#ifndef __ACIDANTHERA_MAC_SDK
+#error "This kext SDK is unsupported. Download from https://github.com/acidanthera/MacKernelSDK"
+#endif
 
 class LiluAPI {
 public:
@@ -133,8 +138,6 @@ public:
 	 *
 	 *  @param callback your callback function
 	 *  @param user     your pointer that will be passed to the callback function
-	 *
-	 *  @return Error::NoError on success
 	 */
 	inline void onPatcherLoadForce(t_patcherLoaded callback, void *user=nullptr) {
 		auto err = onPatcherLoad(callback, user);
@@ -174,8 +177,6 @@ public:
 	 *  @param num      number of provided kext entries
 	 *  @param callback your callback function (optional)
 	 *  @param user     your pointer that will be passed to the callback function (optional)
-	 *
-	 *  @return Error::NoError on success
 	 */
 	inline void onKextLoadForce(KernelPatcher::KextInfo *infos, size_t num=1, t_kextLoaded callback=nullptr, void *user=nullptr) {
 		auto err = onKextLoad(infos, num, callback, user);
@@ -207,8 +208,6 @@ public:
 	 *  @param user     your pointer that will be passed to the callback function
 	 *  @param mods     optional mod list (make sure to point to const memory)
 	 *  @param modnum   number of provided mod entries
-	 *
-	 *  @return Error::NoError on success
 	 */
 	inline void onProcLoadForce(UserPatcher::ProcInfo *infos, size_t num=1, UserPatcher::t_BinaryLoaded callback=nullptr, void *user=nullptr, UserPatcher::BinaryModInfo *mods=nullptr, size_t modnum=0) {
 		auto err = onProcLoad(infos, num, callback, user, mods, modnum);
@@ -243,14 +242,17 @@ public:
 	 *
 	 *  @param callback your callback function
 	 *  @param user     your pointer that will be passed to the callback function
-	 *
-	 *  @return Error::NoError on success
 	 */
 	inline void onEntitlementRequestForce(t_entitlementRequested callback, void *user=nullptr) {
 		auto err = onEntitlementRequest(callback, user);
 		if (err != Error::NoError)
 			PANIC("api", "onEntitlementRequest failed with code %d", err);
 	}
+
+	/**
+	 *  Complete plugin registration and perform regulatory actions
+	 */
+	void finaliseRequests();
 
 	/**
 	 *  Processes all the registered patcher load callbacks

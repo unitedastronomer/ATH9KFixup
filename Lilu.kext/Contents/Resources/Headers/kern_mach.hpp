@@ -21,6 +21,28 @@
 #include <libkern/c++/OSDictionary.h>
 
 class MachInfo {
+#if defined(__i386__)
+	using mach_header_native = mach_header;
+	using segment_command_native = segment_command;
+	using nlist_native = struct nlist;
+	
+	static constexpr uint8_t SegmentTypeNative {LC_SEGMENT};
+	static constexpr uint32_t MachMagicNative {MH_MAGIC};
+	static constexpr uint32_t MachCpuTypeNative {CPU_TYPE_I386};
+
+#elif defined(__x86_64__)
+	using mach_header_native = mach_header_64;
+	using segment_command_native = segment_command_64;
+	using nlist_native = struct nlist_64;
+	
+	static constexpr uint8_t SegmentTypeNative {LC_SEGMENT_64};
+	static constexpr uint32_t MachMagicNative {MH_MAGIC_64};
+	static constexpr uint32_t MachCpuTypeNative {CPU_TYPE_X86_64};
+
+#else
+#error Unsupported arch.
+#endif
+	
 	mach_vm_address_t running_text_addr {0}; // the address of running __TEXT segment
 	mach_vm_address_t disk_text_addr {0};    // the same address at from a file
 	mach_vm_address_t kaslr_slide {0};       // the kernel aslr slide, computed as the difference between above's addresses
@@ -29,18 +51,23 @@ class MachInfo {
 	uint8_t *prelink_addr {nullptr};         // prelink text base address
 	mach_vm_address_t prelink_vmaddr {0};    // prelink text base vm address (for kexts this is their actual slide)
 	uint32_t file_buf_size {0};              // read file data size
-	uint8_t *linkedit_buf {nullptr};         // pointer to __LINKEDIT buffer containing symbols to solve
-	uint64_t linkedit_fileoff {0};           // __LINKEDIT file offset so we can read
-	uint64_t linkedit_size {0};
+	uint8_t *sym_buf {nullptr};              // pointer to buffer (normally __LINKEDIT) containing symbols to solve
+	bool sym_buf_ro {false};                 // sym_buf is read-only (not copy).
+	uint64_t sym_fileoff {0};                // file offset of symbols (normally __LINKEDIT) so we can read
+	size_t sym_size {0};
 	uint32_t symboltable_fileoff {0};        // file offset to symbol table - used to position inside the __LINKEDIT buffer
 	uint32_t symboltable_nr_symbols {0};
 	uint32_t stringtable_fileoff {0};        // file offset to string table
-	mach_header_64 *running_mh {nullptr};    // pointer to mach-o header of running kernel item
+	uint32_t stringtable_size {0};
+	mach_header_native *running_mh {nullptr};    // pointer to mach-o header of running kernel item
+	mach_vm_address_t address_slots {0};     // pointer after mach-o header to store pointers
+	mach_vm_address_t address_slots_end {0}; // pointer after mach-o header to store pointers
 	off_t fat_offset {0};                    // additional fat offset
 	size_t memory_size {HeaderSize};         // memory size
 	bool kaslr_slide_set {false};            // kaslr can be null, used for disambiguation
 	bool allow_decompress {true};            // allows mach decompression
 	bool prelink_slid {false};               // assume kaslr-slid kext addresses
+	bool kernel_collection {false};          // kernel collection (11.0+)
 	uint64_t self_uuid[2] {};                // saved uuid of the loaded kext or kernel
 
 	/**
@@ -65,7 +92,7 @@ class MachInfo {
 	 *  @return true on success
 	 */
 	bool loadUUID(void *header);
-	
+
 	/**
 	 *  Enable/disable the Write Protection bit in CR0 register
 	 *
@@ -74,7 +101,7 @@ class MachInfo {
 	 *  @return KERN_SUCCESS if succeeded
 	 */
 	static kern_return_t setWPBit(bool enable);
-	
+
 	/**
 	 *  Retrieve the first pages of a binary at disk into a buffer
 	 *  Version that uses KPI VFS functions and a ripped uio_createwithbuffer() from XNU
@@ -90,15 +117,15 @@ class MachInfo {
 	kern_return_t readMachHeader(uint8_t *buffer, vnode_t vnode, vfs_context_t ctxt, off_t off=0);
 
 	/**
-	 *  Retrieve the whole linkedit segment into target buffer from kernel binary at disk
+	 *  Retrieve the whole symbol table (typically contained within the linkedit segment) into target buffer from kernel binary at disk
 	 *
 	 *  @param vnode file node
 	 *  @param ctxt  filesystem context
 	 *
 	 *  @return KERN_SUCCESS on success
 	 */
-	kern_return_t readLinkedit(vnode_t vnode, vfs_context_t ctxt);
-	
+	kern_return_t readSymbols(vnode_t vnode, vfs_context_t ctxt);
+
 	/**
 	 *  Retrieve necessary mach-o header information from the mach header
 	 *
@@ -122,7 +149,7 @@ class MachInfo {
 	 *  @return pointer to const buffer on success or nullptr
 	 */
 	uint8_t *findImage(const char *identifier, uint32_t &imageSize, mach_vm_address_t &slide, bool &missing);
-	
+
 	MachInfo(bool asKernel, const char *id) : isKernel(asKernel), objectId(id) {
 		DBGLOG("mach", "MachInfo asKernel %d object constructed", asKernel);
 	}
@@ -148,18 +175,25 @@ class MachInfo {
 	 */
 	kern_return_t initFromFileSystem(const char * const paths[], size_t num);
 
+	/**
+	 *  Resolve mach data in the kernel via memory access
+	 *
+	 *  @return KERN_SUCCESS if loaded
+	 */
+	kern_return_t initFromMemory();
+
 public:
 
 	/**
 	 *  Each header is assumed to fit two pages
 	 */
 	static constexpr size_t HeaderSize {PAGE_SIZE_64*2};
-	
+
 	/**
 	 *  Representation mode (kernel/kext)
 	 */
 	EXPORT const bool isKernel;
-	
+
 	/**
 	 *  Specified file identifier
 	 */
@@ -174,7 +208,7 @@ public:
 	 *  @return MachInfo object or nullptr
 	 */
 	static MachInfo *create(bool asKernel=false, const char *id=nullptr) { return new MachInfo(asKernel, id); }
-	static void deleter(MachInfo *i) { delete i; }
+	static void deleter(MachInfo *i NONNULL) { delete i; }
 
 	/**
 	 *  Resolve mach data in the kernel
@@ -187,11 +221,28 @@ public:
 	 *  @return KERN_SUCCESS if loaded
 	 */
 	EXPORT kern_return_t init(const char * const paths[], size_t num = 1, MachInfo *prelink=nullptr, bool fsfallback=false);
-	
+
 	/**
 	 *  Release the allocated memory, must be called regardless of the init error
 	 */
 	EXPORT void deinit();
+
+	/**
+	 *  Retrieve the mach header and __TEXT addresses for KC mode
+	 *
+	 *  @param slide load slide if calculating for kexts
+	 *
+	 *  @return KERN_SUCCESS on success
+	 */
+	kern_return_t kcGetRunningAddresses(mach_vm_address_t slide);
+
+	/**
+	 *  Get address slot if present
+	 *
+	 *  @return address slot on success
+	 *  @return NULL on success
+	 */
+	mach_vm_address_t getAddressSlot();
 
 	/**
 	 *  Retrieve the mach header and __TEXT addresses
@@ -203,7 +254,7 @@ public:
 	 *  @return KERN_SUCCESS on success
 	 */
 	EXPORT kern_return_t getRunningAddresses(mach_vm_address_t slide=0, size_t size=0, bool force=false);
-	
+
 	/**
 	 *  Set the mach header address
 	 *
@@ -256,7 +307,7 @@ public:
 	 *  @return true if changed the value and false if it is unchanged
 	 */
 	EXPORT static bool setInterrupts(bool enable);
-	
+
 	/**
 	 *  Enable/disable kernel memory write protection
 	 *
@@ -266,7 +317,7 @@ public:
 	 *  @return KERN_SUCCESS if succeeded
 	 */
 	EXPORT static kern_return_t setKernelWriting(bool enable, IOSimpleLock *lock);
-	
+
 	/**
 	 *  Find section bounds in a passed binary for provided cpu
 	 *
@@ -286,6 +337,13 @@ public:
 	 *  Request to free file buffer resources (not including linkedit symtable)
 	 */
 	void freeFileBufferResources();
+
+	/**
+	 *  Get fat offset of the initialised image
+	 */
+	off_t getFatOffset() {
+		return fat_offset;
+	}
 };
 
 #endif /* kern_mach_hpp */
