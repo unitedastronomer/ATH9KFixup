@@ -1,6 +1,8 @@
 ATH9KFixup
 ==========
-This fork is adjusted to be loaded with OCLP's patched AirportAtheros40. 
+This fork is adjusted to be loaded with [OCLP's patched El Capitan](https://github.com/dortania/OpenCore-Legacy-Patcher/tree/main/payloads/Kexts/Wifi) `AirportAtheros40.kext`
+
+[Instruction how to use here](https://github.com/unitedastronomer/miscellaneous-hackintosh-guides/blob/main/Atheros_Wifi_Monterey_and_newer/README.md)
 
 An open source kernel extension providing patches for unsupported Atheros cards.
 - AR946X (AR9462 & AR9463)
