@@ -1,8 +1,6 @@
 ATH9KFixup
 ==========
-This fork is adjusted to be loaded with [OCLP's patched El Capitan](https://github.com/dortania/OpenCore-Legacy-Patcher/tree/main/payloads/Kexts/Wifi) `AirportAtheros40.kext`
-
-[Instruction how to use here](https://github.com/unitedastronomer/miscellaneous-hackintosh-guides/blob/main/Atheros_Wifi_Monterey_and_newer/README.md)
+This fork is adjusted to be loaded with [OCLP's patched El Capitan](https://github.com/dortania/OpenCore-Legacy-Patcher/tree/main/payloads/Kexts/Wifi) **AirportAtheros40.kext**
 
 An open source kernel extension providing patches for unsupported Atheros cards.
 - AR946X (AR9462 & AR9463)
@@ -19,7 +17,7 @@ Load kext in order:
 
 1. ATH9Fixup.kext
 2. corecaptureElCap.kext
-3. O80211ElCap.kext
+3. IO80211ElCap.kext
 4. IO80211ElCap.kext/Contents/PlugIns/AirPortAtheros40.kext
 
 Set minKernel to `18.0.0` (Mojave)
